@@ -19,9 +19,8 @@
   <title>아카펠라 메이커</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- ffmpeg.wasm - 브라우저에서 FFmpeg 실행 -->
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-  <script src="https://unpkg.com/@ffmpeg/util@0.12.2/dist/umd/index.js"></script>
+  <!-- ffmpeg.wasm v0.11 (SharedArrayBuffer 불필요) -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
   <script>
     let ffmpegInstance = null;
@@ -29,12 +28,12 @@
     window.initFFmpeg = async function() {
       if (ffmpegInstance) return true;
       try {
-        const { FFmpeg } = FFmpegWASM;
-        ffmpegInstance = new FFmpeg();
-        ffmpegInstance.on('log', ({ message }) => console.log('[FFmpeg]', message));
-        await ffmpegInstance.load({
-          coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+        const { createFFmpeg } = FFmpeg;
+        ffmpegInstance = createFFmpeg({
+          log: true,
+          corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
         });
+        await ffmpegInstance.load();
         console.log('[FFmpeg] 초기화 완료');
         return true;
       } catch(e) {
@@ -48,21 +47,19 @@
         const ok = await window.initFFmpeg();
         if (!ok) return null;
       }
-      const { fetchFile } = FFmpegUtil;
+      const { fetchFile } = FFmpeg;
       const ffmpeg = ffmpegInstance;
 
       try {
-        for (let i = 0; i < videoUrls.length; i++) {
-          const data = await fetchFile(videoUrls[i]);
-          await ffmpeg.writeFile('input' + i + '.webm', data);
+        const n = videoUrls.length;
+        if (n === 1) return videoUrls[0];
+
+        for (let i = 0; i < n; i++) {
+          ffmpeg.FS('writeFile', 'input' + i + '.webm', await fetchFile(videoUrls[i]));
         }
 
         let filterComplex, mapArgs;
-        const n = videoUrls.length;
-
-        if (n === 1) {
-          return videoUrls[0];
-        } else if (n === 2) {
+        if (n === 2) {
           filterComplex = '[0:v]scale=640:480[v0];[1:v]scale=640:480[v1];[v0][v1]hstack=inputs=2[v];[0:a][1:a]amix=inputs=2[a]';
           mapArgs = ['-map', '[v]', '-map', '[a]'];
         } else {
@@ -75,9 +72,9 @@
         }
 
         const inputs = Array.from({length: n}, (_, i) => ['-i', 'input' + i + '.webm']).flat();
-        await ffmpeg.exec([...inputs, '-filter_complex', filterComplex, ...mapArgs, '-c:v', 'libx264', '-c:a', 'aac', 'output.mp4']);
+        await ffmpeg.run(...inputs, '-filter_complex', filterComplex, ...mapArgs, 'output.mp4');
 
-        const data = await ffmpeg.readFile('output.mp4');
+        const data = ffmpeg.FS('readFile', 'output.mp4');
         const blob = new Blob([data.buffer], { type: 'video/mp4' });
         return URL.createObjectURL(blob);
       } catch(e) {
