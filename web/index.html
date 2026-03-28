@@ -19,7 +19,20 @@
   <title>아카펠라 메이커</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- ffmpeg.wasm v0.11 (SharedArrayBuffer 불필요) -->
+  <!-- Cross-Origin Isolation (SharedArrayBuffer 활성화) -->
+  <script>
+    if (!crossOriginIsolated) {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/coi-serviceworker.js').then(function(reg) {
+          if (reg.active && !navigator.serviceWorker.controller) {
+            window.location.reload();
+          }
+        });
+      }
+    }
+  </script>
+
+  <!-- ffmpeg.wasm v0.11 -->
   <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
   <script>
