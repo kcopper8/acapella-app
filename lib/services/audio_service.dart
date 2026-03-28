@@ -1,10 +1,10 @@
-import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:js_interop';
 
-/// 박자(클릭 트랙)와 가이드 음을 재생하는 서비스
+@JS('eval')
+external void jsEval(String code);
+
 class AudioService {
-  final AudioPlayer _player = AudioPlayer();
-
-  // 음이름 → 주파수(Hz) 매핑 (4옥타브 기준)
   static const Map<String, double> noteFrequencies = {
     '도': 261.63,
     '레': 293.66,
@@ -16,26 +16,51 @@ class AudioService {
     '시': 493.88,
     '시b': 466.16,
     '도샵': 277.18,
+    '레b': 277.18,
   };
 
-  /// 카운트다운 비프음 재생 (웹 호환)
-  Future<void> playBeep() async {
-    // 웹에서는 Web Audio API로 비프음 생성
-    // 모바일에서는 짧은 오디오 파일 사용
-    // 현재는 진동/시각적 피드백으로 대체
+  bool _isPlaying = false;
+  bool get isPlaying => _isPlaying;
+
+  Future<void> playNote(String noteName, {double durationMs = 500}) async {
+    if (!kIsWeb) return;
+    final freq = noteFrequencies[noteName];
+    if (freq == null) return;
+    try {
+      jsEval('''
+        (function() {
+          var ctx = new (window.AudioContext || window.webkitAudioContext)();
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = $freq;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + ${durationMs / 1000});
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + ${durationMs / 1000});
+        })();
+      ''');
+    } catch (_) {}
   }
 
-  /// 메트로놈 틱 (BPM 기반)
-  Stream<int> metronomeStream(int bpm) async* {
+  Future<void> playClick({bool isStrong = false}) async {
+    await playNote(isStrong ? '솔' : '미', durationMs: 80);
+  }
+
+  Future<void> playGuideSequence(List<String> notes, int bpm) async {
+    _isPlaying = true;
     final intervalMs = (60000 / bpm).round();
-    int beat = 0;
-    while (true) {
+    for (final note in notes) {
+      if (!_isPlaying) break;
+      await playNote(note, durationMs: intervalMs * 0.8);
       await Future.delayed(Duration(milliseconds: intervalMs));
-      yield beat++;
     }
+    _isPlaying = false;
   }
 
-  Future<void> dispose() async {
-    await _player.dispose();
-  }
+  void stop() => _isPlaying = false;
+
+  Future<void> dispose() async => stop();
 }

@@ -51,7 +51,9 @@ class _RecordScreenState extends State<RecordScreen> {
       _countdown = 3;
     });
 
+    // 카운트다운 비프음 + 시각 효과
     for (int i = 3; i >= 1; i--) {
+      await _audioService.playClick(isStrong: i == 3);
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
       setState(() => _countdown = i - 1);
@@ -66,8 +68,18 @@ class _RecordScreenState extends State<RecordScreen> {
     // 녹화 시작
     await _cameraService.startRecording();
 
+    // 가이드 음 루프 재생
+    _playGuideLoop();
+
     // 경과 시간 카운트
     _startElapsedTimer();
+  }
+
+  void _playGuideLoop() async {
+    while (_isRecording && mounted) {
+      await _audioService.playGuideSequence(widget.part.notes, widget.song.bpm);
+      if (!_isRecording) break;
+    }
   }
 
   void _startElapsedTimer() async {
