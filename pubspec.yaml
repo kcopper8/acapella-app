@@ -31,9 +31,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  camera: ^0.11.1             # 카메라 녹화
+  just_audio: ^0.10.2         # 가이드 음 재생
+  record: ^5.2.0              # 마이크 녹화
+  path_provider: ^2.1.5       # 파일 저장 경로
+  video_player: ^2.9.3        # 영상 미리보기
+  permission_handler: ^11.4.0 # 카메라/마이크 권한
 
 dev_dependencies:
   flutter_test:
