@@ -1,46 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="아카펠라 메이커">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="acapella_app">
+  <meta name="apple-mobile-web-app-title" content="아카펠라 메이커">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>acapella_app</title>
+  <title>아카펠라 메이커</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- ffmpeg.wasm - 브라우저에서 FFmpeg 실행 -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/util@0.12.2/dist/umd/index.js"></script>
+
+  <script>
+    let ffmpegInstance = null;
+
+    window.initFFmpeg = async function() {
+      if (ffmpegInstance) return true;
+      try {
+        const { FFmpeg } = FFmpegWASM;
+        ffmpegInstance = new FFmpeg();
+        ffmpegInstance.on('log', ({ message }) => console.log('[FFmpeg]', message));
+        await ffmpegInstance.load({
+          coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+        });
+        console.log('[FFmpeg] 초기화 완료');
+        return true;
+      } catch(e) {
+        console.error('[FFmpeg] 초기화 실패:', e);
+        return false;
+      }
+    };
+
+    window.mergeVideosToGrid = async function(videoUrls) {
+      if (!ffmpegInstance) {
+        const ok = await window.initFFmpeg();
+        if (!ok) return null;
+      }
+      const { fetchFile } = FFmpegUtil;
+      const ffmpeg = ffmpegInstance;
+
+      try {
+        for (let i = 0; i < videoUrls.length; i++) {
+          const data = await fetchFile(videoUrls[i]);
+          await ffmpeg.writeFile('input' + i + '.webm', data);
+        }
+
+        let filterComplex, mapArgs;
+        const n = videoUrls.length;
+
+        if (n === 1) {
+          return videoUrls[0];
+        } else if (n === 2) {
+          filterComplex = '[0:v]scale=640:480[v0];[1:v]scale=640:480[v1];[v0][v1]hstack=inputs=2[v];[0:a][1:a]amix=inputs=2[a]';
+          mapArgs = ['-map', '[v]', '-map', '[a]'];
+        } else {
+          const scales = Array.from({length: n}, (_, i) => '[' + i + ':v]scale=320:240[v' + i + ']').join(';');
+          const stack = Array.from({length: n}, (_, i) => '[v' + i + ']').join('');
+          const layout = n === 3 ? '0_0|w0_0|0_h0' : '0_0|w0_0|0_h0|w0_h0';
+          const audioMix = Array.from({length: n}, (_, i) => '[' + i + ':a]').join('');
+          filterComplex = scales + ';' + stack + 'xstack=inputs=' + n + ':layout=' + layout + '[v];' + audioMix + 'amix=inputs=' + n + '[a]';
+          mapArgs = ['-map', '[v]', '-map', '[a]'];
+        }
+
+        const inputs = Array.from({length: n}, (_, i) => ['-i', 'input' + i + '.webm']).flat();
+        await ffmpeg.exec([...inputs, '-filter_complex', filterComplex, ...mapArgs, '-c:v', 'libx264', '-c:a', 'aac', 'output.mp4']);
+
+        const data = await ffmpeg.readFile('output.mp4');
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        return URL.createObjectURL(blob);
+      } catch(e) {
+        console.error('[FFmpeg] 합치기 실패:', e);
+        return null;
+      }
+    };
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
