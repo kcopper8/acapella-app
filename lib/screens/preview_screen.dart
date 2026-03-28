@@ -214,29 +214,65 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
             // 합치기 버튼
             if (!_isMerged)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isMerging ? null : _mergeVideos,
-                  icon: _isMerging
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.merge_type, color: Colors.white),
-                  label: Text(
-                    _isMerging ? '합치는 중...' : '영상 합치기',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    padding: const EdgeInsets.all(16),
-                    disabledBackgroundColor: Colors.grey,
-                  ),
-                ),
-              ),
+              _mergeService.isSupported
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isMerging ? null : _mergeVideos,
+                        icon: _isMerging
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.merge_type, color: Colors.white),
+                        label: Text(
+                          _isMerging ? '합치는 중...' : '영상 합치기',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          padding: const EdgeInsets.all(16),
+                          disabledBackgroundColor: Colors.grey,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '영상 합치기는 모바일 앱에서 가능해요',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'iOS/Android 앱으로 빌드하면 녹화한 영상들이 그리드로 합쳐져요 🎬',
+                                  style: TextStyle(
+                                      color: Colors.orange, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
           ],
         ),
       ),
