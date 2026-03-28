@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../models/song.dart';
@@ -37,7 +37,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
       final outputPath = await _mergeService.mergeToGrid(widget.recordings);
 
       if (outputPath != null) {
-        final controller = VideoPlayerController.file(File(outputPath));
+        // 웹: blob URL, 모바일: 파일 경로
+        final controller = kIsWeb
+            ? VideoPlayerController.networkUrl(Uri.parse(outputPath))
+            : VideoPlayerController.networkUrl(Uri.parse(outputPath));
         await controller.initialize();
         await controller.setLooping(true);
 
